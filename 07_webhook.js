@@ -185,7 +185,7 @@ async function createFBList(message) {
 app.post('/telegram', async (req, res) => {
   let body = req.body
   let text = body.message.text
-  if (text === '/help' || '/start') {
+  if (text === '/help' || text === '/start') {
     text = 'Цей бот призначений для пошуку статей Кримінального кодексу України. ' +
     'Для початку роботи введіть ключові слова або номер статті. ' +
     'Бот запропонує вам відповідні статті з Кодексу.'
