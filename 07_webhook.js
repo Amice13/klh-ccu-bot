@@ -47,7 +47,6 @@ const index = 'bot_article'
 
 // Отримання повідомлень від Facebook
 app.get('/article', async (req, res) => {
-  //
   if (req.query && req.query.query) {
     const result = await findArticle(req.query.query)
     return res.status(200).send(result)
@@ -113,7 +112,7 @@ function callSendAPI(id, message) {
   })
 }
 
-// Створення змісту відповіді
+// Створення змісту відповіді для Facebook
 async function createFBList(message) {
   let list = {
     'attachment': {
@@ -132,7 +131,7 @@ async function createFBList(message) {
   if (articles.length > 1) {
     articles = articles.map(el => {
       return {
-        title: `Стаття ${el.article}.\n${el.articleTitle}`,
+        title: `Стаття ${el.article}. ${el.articleTitle}`,
         subtitle: el.chapterTitle,
         buttons: [
           { 
@@ -156,7 +155,7 @@ async function createFBList(message) {
           template_type: 'generic',
           elements: [
             {
-              title: `Стаття ${el.article}.\n${el.articleTitle}`,
+              title: `Стаття ${el.article}. ${el.articleTitle}`,
               subtitle: el.chapterTitle,
               default_action: {
                 type: 'web_url',
@@ -178,6 +177,48 @@ async function createFBList(message) {
         }
       }
     }
+  }
+  return list
+}
+
+// Cтворюємо посилання для обробки Telegram
+app.post('/telegram', async (req, res) => {
+  let body = req.body
+  let text = body.message.text
+  if (text === '/help' || '/start') {
+    text = 'Цей бот призначений для пошуку статей Кримінального кодексу України. ' +
+    'Для початку роботи введіть ключові слова або номер статті. ' +
+    'Бот запропонує вам відповідні статті з Кодексу.'
+  } else {
+    text = await createTelegramList(body.message.text)
+  }
+  let chat_id = body.message.chat.id
+
+  let requestBody = { chat_id, text, parse_mode: 'Markdown' }
+  request({
+    'uri': `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
+    'method': 'POST',
+    'json': requestBody
+  }, (err, res, body) => {
+    if (err) console.error('Unable to send message:' + err)
+    console.log(body)
+  })
+  res.status(200).send('EVENT_RECEIVED')
+})
+
+
+// Створення змісту відповіді для Telegram
+async function createTelegramList(message) {
+  let list = 'Знайдено такі статті:\n\n'
+
+  let articles = await findArticle(message)
+  if (articles.length === 0) return 'На жаль, не можу знайти статтю за таким запитом. Спробуйте ще! ;)'
+
+  articles = articles.slice(0, 3)
+  if (articles.length > 1) {
+    articles = articles.map(el => `*Стаття ${el.article}*\n*${el.articleTitle}*\n${el.chapterTitle}\n\n[Переглянути](https://klh.dp.ua/article?id=${el.id})`)
+    articles = articles.join('\n\n')
+    list += articles
   }
   return list
 }
