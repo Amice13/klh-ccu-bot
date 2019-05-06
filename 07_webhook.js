@@ -196,14 +196,12 @@ app.post('/telegram', async (req, res) => {
   let chat_id = body.message.chat.id
 
   let requestBody = Object.assign({ chat_id, parse_mode: 'Markdown' }, response)
-  console.log(JSON.stringify(requestBody))
   request({
     'uri': `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
     'method': 'POST',
     'json': requestBody
   }, (err, res, body) => {
     if (err) console.error('Unable to send message:' + err)
-    console.log(body)
   })
   res.status(200).send('EVENT_RECEIVED')
 })
