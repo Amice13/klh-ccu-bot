@@ -185,16 +185,18 @@ async function createFBList(message) {
 app.post('/telegram', async (req, res) => {
   let body = req.body
   let text = body.message.text
+  let response
   if (text === '/help' || text === '/start') {
-    text = 'Цей бот призначений для пошуку статей Кримінального кодексу України. ' +
-    'Для початку роботи введіть ключові слова або номер статті. ' +
-    'Бот запропонує вам відповідні статті з Кодексу.'
+    response = { text: 'Цей бот призначений для пошуку статей Кримінального кодексу України. ' +
+    'Для початку роботи введіть ключові слова і бот запропонує вам відповідні статті з Кодексу. ' +
+    'Якщо ви введете номер статті, то отримаєте саму статтю, а також перелік пов\'язаних статей.' }
   } else {
-    text = await createTelegramList(body.message.text)
+    response = await createTelegramList(body.message.text)
   }
   let chat_id = body.message.chat.id
 
-  let requestBody = { chat_id, text, parse_mode: 'Markdown' }
+  let requestBody = Object.assign({ chat_id, parse_mode: 'Markdown' }, response)
+  console.log(JSON.stringify(requestBody))
   request({
     'uri': `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
     'method': 'POST',
@@ -209,16 +211,20 @@ app.post('/telegram', async (req, res) => {
 
 // Створення змісту відповіді для Telegram
 async function createTelegramList(message) {
-  let list = 'Знайдено такі статті:\n\n'
+  let text = 'Знайдено такі статті:\n\n'
 
   let articles = await findArticle(message)
-  if (articles.length === 0) return 'На жаль, не можу знайти статтю за таким запитом. Спробуйте ще! ;)'
-
+  if (articles.length === 0) return { text: 'На жаль, не можу знайти статтю за таким запитом. Спробуйте ще! ;)'}
   articles = articles.slice(0, 3)
-  if (articles.length > 1) {
-    articles = articles.map(el => `*Стаття ${el.article}*\n*${el.articleTitle}*\n${el.chapterTitle}\n\n[Переглянути](https://klh.dp.ua/article?id=${el.id})`)
-    articles = articles.join('\n\n')
-    list += articles
-  }
-  return list
+  let articleTexts = articles.map(el => `*Стаття ${el.article}*\n*${el.articleTitle}*\n${el.chapterTitle}\n\n[Переглянути](https://klh.dp.ua/article?id=${el.id})`)
+  articleTexts = articleTexts.join('\n\n')
+  text += articleTexts
+  const inline_keyboard = articles.map(el => {
+    return [{
+      text: `Стаття ${el.article}`,
+      url: `https://klh.dp.ua/article?id=${el.id}`
+    }]
+  })
+  const reply_markup = { inline_keyboard }
+  return { text, reply_markup }
 }
